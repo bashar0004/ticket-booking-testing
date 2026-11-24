@@ -16,12 +16,19 @@ public class BookingManager {
 
     public BookingResult processBooking(BookingRequest request) {
         eventRepository.isSoldOut(request.eventId()); // result not used yet: no test needs it
-        long total = (long) request.ticketQuantity() * request.pricePerTicketInCents();
+        long total = calculateTotal(request);
         String transactionId = paymentGateway.processPayment(request.customerId(), total);
-        Booking booking = new Booking(request.customerId(), request.eventId(),
-                request.ticketQuantity(), total, transactionId);
-        eventRepository.saveBooking(booking);
+        eventRepository.saveBooking(toBooking(request, total, transactionId));
         notificationService.sendConfirmation(request.customerId(), request.eventId(), transactionId);
         return BookingResult.success(transactionId);
+    }
+
+    private static long calculateTotal(BookingRequest request) {
+        return (long) request.ticketQuantity() * request.pricePerTicketInCents();
+    }
+
+    private static Booking toBooking(BookingRequest request, long total, String transactionId) {
+        return new Booking(request.customerId(), request.eventId(),
+                request.ticketQuantity(), total, transactionId);
     }
 }
