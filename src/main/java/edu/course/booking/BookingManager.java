@@ -15,6 +15,13 @@ public class BookingManager {
     }
 
     public BookingResult processBooking(BookingRequest request) {
+        if (request == null
+                || request.customerId() == null || request.customerId().isBlank()
+                || request.eventId() == null || request.eventId().isBlank()
+                || request.ticketQuantity() < 1 || request.ticketQuantity() > 5
+                || request.pricePerTicketInCents() <= 0) {
+            return BookingResult.invalidRequest();
+        }
         eventRepository.isSoldOut(request.eventId()); // result not used yet: no test needs it
         long total = calculateTotal(request);
         String transactionId = paymentGateway.processPayment(request.customerId(), total);
