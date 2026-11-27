@@ -3,8 +3,12 @@ package edu.course.booking;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 
 class BookingManagerTest {
@@ -48,5 +52,35 @@ class BookingManagerTest {
         inOrder.verify(notificationService, times(1))
                 .sendConfirmation(CUSTOMER_ID, EVENT_ID, TRANSACTION_ID);
         verifyNoMoreInteractions(eventRepository, paymentGateway, notificationService);
+    }
+
+    // ---------------------------------------------------------------- M1-US2
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidRequests")
+    void invalidRequest_isRejectedBeforeAnyDependencyIsUsed(String description, BookingRequest request) {
+        BookingResult result = bookingManager.processBooking(request);
+
+        assertNotNull(result);
+        assertEquals(BookingResult.Status.INVALID_REQUEST, result.status());
+        assertNull(result.transactionId());
+        verifyNoInteractions(eventRepository, paymentGateway, notificationService);
+    }
+
+    static Stream<Arguments> invalidRequests() {
+        return Stream.of(
+                Arguments.of("null request", null),
+                Arguments.of("null customerId", new BookingRequest(null, EVENT_ID, 2, 2500)),
+                Arguments.of("empty customerId", new BookingRequest("", EVENT_ID, 2, 2500)),
+                Arguments.of("blank customerId", new BookingRequest("   ", EVENT_ID, 2, 2500)),
+                Arguments.of("null eventId", new BookingRequest(CUSTOMER_ID, null, 2, 2500)),
+                Arguments.of("empty eventId", new BookingRequest(CUSTOMER_ID, "", 2, 2500)),
+                Arguments.of("blank eventId", new BookingRequest(CUSTOMER_ID, "   ", 2, 2500)),
+                Arguments.of("quantity 0 (below minimum)", new BookingRequest(CUSTOMER_ID, EVENT_ID, 0, 2500)),
+                Arguments.of("quantity 6 (above maximum)", new BookingRequest(CUSTOMER_ID, EVENT_ID, 6, 2500)),
+                Arguments.of("negative quantity", new BookingRequest(CUSTOMER_ID, EVENT_ID, -1, 2500)),
+                Arguments.of("price 0", new BookingRequest(CUSTOMER_ID, EVENT_ID, 2, 0)),
+                Arguments.of("negative price", new BookingRequest(CUSTOMER_ID, EVENT_ID, 2, -100))
+        );
     }
 }
