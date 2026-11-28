@@ -2,6 +2,9 @@ package edu.course.booking;
 
 public class BookingManager {
 
+    static final int MIN_TICKETS = 1;
+    static final int MAX_TICKETS = 5;
+
     private final IPaymentGateway paymentGateway;
     private final INotificationService notificationService;
     private final IEventRepository eventRepository;
@@ -15,11 +18,7 @@ public class BookingManager {
     }
 
     public BookingResult processBooking(BookingRequest request) {
-        if (request == null
-                || request.customerId() == null || request.customerId().isBlank()
-                || request.eventId() == null || request.eventId().isBlank()
-                || request.ticketQuantity() < 1 || request.ticketQuantity() > 5
-                || request.pricePerTicketInCents() <= 0) {
+        if (!isValid(request)) {
             return BookingResult.invalidRequest();
         }
         eventRepository.isSoldOut(request.eventId()); // result not used yet: no test needs it
@@ -28,6 +27,19 @@ public class BookingManager {
         eventRepository.saveBooking(toBooking(request, total, transactionId));
         notificationService.sendConfirmation(request.customerId(), request.eventId(), transactionId);
         return BookingResult.success(transactionId);
+    }
+
+    private static boolean isValid(BookingRequest request) {
+        return request != null
+                && !isBlank(request.customerId())
+                && !isBlank(request.eventId())
+                && request.ticketQuantity() >= MIN_TICKETS
+                && request.ticketQuantity() <= MAX_TICKETS
+                && request.pricePerTicketInCents() > 0;
+    }
+
+    private static boolean isBlank(String text) {
+        return text == null || text.isBlank();
     }
 
     private static long calculateTotal(BookingRequest request) {
